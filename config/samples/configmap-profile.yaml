@@ -1,0 +1,38 @@
+apiVersion: profiles.barpilot.io/v1alpha1
+kind: Profile
+metadata:
+  name: configmap-production-config
+spec:
+  description: "Adds production configuration to ConfigMaps"
+  priority: 20
+  template:
+    overlay:
+      # Complete overlay - can modify any field including 'data'
+      metadata:
+        labels:
+          environment: "production"
+          managed-by: "profile-operator"
+        annotations:
+          config.profile.barpilot.io/applied: "production-config"
+      data:
+        # Add or override data in ConfigMaps
+        environment: "production"
+        log_level: "warn"
+        database_pool_size: "20"
+        cache_enabled: "true"
+---
+apiVersion: profiles.barpilot.io/v1alpha1
+kind: ProfileBinding
+metadata:
+  name: apply-production-config
+spec:
+  profileRef:
+    name: configmap-production-config
+  targetSelector:
+    apiVersion: v1
+    kind: ConfigMap
+    namespaces:
+    - "production"
+    - "staging"
+    matchLabels:
+      app.kubernetes.io/component: "config"

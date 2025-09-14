@@ -1,0 +1,42 @@
+apiVersion: profiles.barpilot.io/v1alpha1
+kind: Profile
+metadata:
+  name: resource-limits
+spec:
+  description: "Sets resource limits for containers"
+  priority: 5
+  template:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: "*"  # Wildcard to apply to all containers
+            resources:
+              limits:
+                cpu: "500m"
+                memory: "512Mi"
+              requests:
+                cpu: "100m"
+                memory: "128Mi"
+    metadata:
+      labels:
+        profile.barpilot.io/applied: "resource-limits"
+---
+apiVersion: profiles.barpilot.io/v1alpha1
+kind: ProfileBinding
+metadata:
+  name: resource-limits-binding
+  namespace: default
+spec:
+  profileRef:
+    name: resource-limits
+  targetSelector:
+    apiVersion: apps/v1
+    kind: Deployment
+    # Apply to all deployments in production namespaces
+    namespaceSelector:
+      matchLabels:
+        environment: production
+  updateStrategy:
+    type: Immediate
+  enabled: true

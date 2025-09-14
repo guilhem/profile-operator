@@ -1,0 +1,23 @@
+apiVersion: profiles.barpilot.io/v1alpha1
+kind: Profile
+metadata:
+  name: php-image-update
+spec:
+  description: "Updates PHP container image to version 1.2.3"
+  priority: 10
+  template:
+    overlay:
+      # Complete overlay - works like Kustomize
+      # Any field can be specified: spec, metadata, data, etc.
+      metadata:
+        labels:
+          profile.barpilot.io/applied: "php-image-update"
+        annotations:
+          profile.barpilot.io/version: "1.2.3"
+      spec:
+        # For a Deployment, this updates the container image
+        template:
+          spec:
+            containers:
+            - name: php
+              image: myimage:1.2.3

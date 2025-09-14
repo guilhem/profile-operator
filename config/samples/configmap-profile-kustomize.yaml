@@ -1,0 +1,49 @@
+apiVersion: profiles.barpilot.io/v1alpha1
+kind: Profile
+metadata:
+  name: development-profile
+spec:
+  template:
+    # Overlay complet style Kustomize - utilise strategic merge patch
+    overlay: |
+      {
+        "metadata": {
+          "labels": {
+            "environment": "development", 
+            "team": "backend",
+            "managed-by": "profile-operator"
+          },
+          "annotations": {
+            "profile.barpilot.io/applied": "true",
+            "profile.barpilot.io/version": "v1.0"
+          }
+        },
+        "data": {
+          "environment.yaml": |
+            environment: development
+            debug: true
+            log_level: debug
+          "app.yaml": |
+            app:
+              name: my-application
+              version: "1.0.0"
+              replicas: 1
+          "database.yaml": |
+            database:
+              host: dev-postgres
+              port: 5432
+              name: myapp_dev
+        }
+      }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: development
+  labels:
+    app: myapp
+data:
+  existing-config.yaml: |
+    existing: configuration
+    should: be preserved

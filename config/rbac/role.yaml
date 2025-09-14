@@ -1,0 +1,52 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - '*'
+  resources:
+  - '*'
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - profiles.barpilot.io
+  resources:
+  - profilebindings
+  - profiles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - profiles.barpilot.io
+  resources:
+  - profilebindings/finalizers
+  - profiles/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - profiles.barpilot.io
+  resources:
+  - profilebindings/status
+  - profiles/status
+  verbs:
+  - get
+  - patch
+  - update
