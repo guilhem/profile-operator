@@ -1,7 +1,24 @@
 /*
 Copyright 2025.
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed under the Apache License,			Spec: &pro					Spec: &profilesv1alpha1.ProfileSpec{
+				Description: ptr.To("Simple test profile"),
+				Template: &profilesv1alpha1.ProfileTemplate{c: &profilesv1alpha1.ProfileSpec{
+				Description: ptr.To("Simple test profile"),
+				Template: &profilesv1alpha1.ProfileTemplate{sv1alpha1.ProfileSpec{
+				Description: ptr.To("Simple test profile"),
+				Template: &profilesv1alpha1.ProfileTemplate{
+					RawPatchStrategicMerge: &apiextv1.JSON{
+						Raw: []byte(`{
+								"metadata": {
+									"labels": {
+										"test": "true"
+									}
+								}
+							}`),
+					},
+				},
+			},he "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
@@ -54,7 +71,6 @@ var _ = Describe("Profile Operator Tests", func() {
 				},
 				Spec: &profilesv1alpha1.ProfileSpec{
 					Description: ptr.To("Simple test profile"),
-					Priority:    ptr.To(int32(5)),
 					Template: &profilesv1alpha1.ProfileTemplate{
 						RawPatchStrategicMerge: &apiextv1.JSON{
 							Raw: []byte(`{

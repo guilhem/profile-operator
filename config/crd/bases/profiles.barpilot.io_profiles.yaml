@@ -15,9 +15,6 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.priority
-      name: Priority
-      type: integer
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
@@ -66,15 +63,6 @@ spec:
                   what this profile does
                 maxLength: 512
                 type: string
-              priority:
-                default: 0
-                description: |-
-                  priority defines the priority of this profile when multiple profiles match the same resource
-                  Higher values take precedence. Default is 0.
-                format: int32
-                maximum: 1000
-                minimum: 0
-                type: integer
               template:
                 description: |-
                   template defines the configuration template to apply to target resources

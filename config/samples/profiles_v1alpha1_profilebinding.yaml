@@ -18,8 +18,5 @@ spec:
     - default
     - staging
   updateStrategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxConcurrent: "50%"
-      pauseBetweenUpdatesSec: 30
+    type: Immediate
   enabled: true

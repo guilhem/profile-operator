@@ -21,9 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // ProfileBindingSpec defines the desired state of ProfileBinding
 type ProfileBindingSpec struct {
 	// profileRef references the Profile to apply
@@ -77,14 +74,10 @@ type TargetSelector struct {
 // UpdateStrategy defines how updates are applied to target resources
 type UpdateStrategy struct {
 	// type of update strategy
-	// +kubebuilder:validation:Enum=Immediate;RollingUpdate;OnDelete
+	// +kubebuilder:validation:Enum=Immediate
 	// +kubebuilder:default="Immediate"
 	// +required
 	Type UpdateStrategyType `json:"type"`
-
-	// rollingUpdate configuration, used when Type is RollingUpdate
-	// +optional
-	RollingUpdate *RollingUpdateConfig `json:"rollingUpdate,omitempty"`
 }
 
 // UpdateStrategyType defines the type of update strategy
@@ -93,27 +86,7 @@ type UpdateStrategyType string
 const (
 	// ImmediateUpdate applies changes to all matching resources immediately
 	ImmediateUpdate UpdateStrategyType = "Immediate"
-
-	// RollingUpdate applies changes gradually to matching resources
-	RollingUpdate UpdateStrategyType = "RollingUpdate"
-
-	// OnDeleteUpdate applies changes only when resources are deleted and recreated
-	OnDeleteUpdate UpdateStrategyType = "OnDelete"
 )
-
-// RollingUpdateConfig defines configuration for rolling updates
-type RollingUpdateConfig struct {
-	// maxConcurrent is the maximum number of resources to update concurrently
-	// Can be an absolute number (ex: 5) or a percentage of total resources (ex: 10%)
-	// +kubebuilder:default="25%"
-	// +kubebuilder:validation:Pattern=`^([0-9]+|[0-9]+%)$`
-	// +optional
-	MaxConcurrent *string `json:"maxConcurrent,omitempty"`
-
-	// pauseBetweenUpdatesSec is the time to wait between updating batches in seconds
-	// +optional
-	PauseBetweenUpdatesSec *int32 `json:"pauseBetweenUpdatesSec,omitempty"`
-}
 
 // ProfileBindingStatus defines the observed state of ProfileBinding.
 type ProfileBindingStatus struct {
@@ -148,67 +121,6 @@ type ProfileBindingStatus struct {
 	// failedResources is the count of resources that failed to be updated
 	// +optional
 	FailedResources *int32 `json:"failedResources,omitempty"`
-
-	// currentUpdate provides information about the current update operation
-	// +optional
-	CurrentUpdate *UpdateStatus `json:"currentUpdate,omitempty"`
-}
-
-// UpdateStatus provides information about an ongoing update operation
-type UpdateStatus struct {
-	// startTime is when the current update started
-	// +optional
-	StartTime *metav1.Time `json:"startTime,omitempty"`
-
-	// currentBatch is the current batch being processed (for rolling updates)
-	// +optional
-	CurrentBatch *int32 `json:"currentBatch,omitempty"`
-
-	// totalBatches is the total number of batches (for rolling updates)
-	// +optional
-	TotalBatches *int32 `json:"totalBatches,omitempty"`
-
-	// failedResources is a list of resources that failed to update
-	// +listType=atomic
-	// +optional
-	FailedResources []FailedResource `json:"failedResources,omitempty"`
-}
-
-// FailedResource represents a resource that failed to be updated
-type FailedResource struct {
-	// resourceRef is the reference to the failed resource
-	// +required
-	ResourceRef *ResourceReference `json:"resourceRef,omitzero"`
-
-	// reason for the failure
-	// +optional
-	Reason *string `json:"reason,omitempty"`
-
-	// failureTime is when the failure occurred
-	// +optional
-	FailureTime *metav1.Time `json:"failureTime,omitempty"`
-}
-
-// ResourceReference identifies a specific Kubernetes resource
-type ResourceReference struct {
-	// apiVersion of the resource
-	// +kubebuilder:validation:MinLength=1
-	// +required
-	APIVersion string `json:"apiVersion"`
-
-	// kind of the resource
-	// +kubebuilder:validation:MinLength=1
-	// +required
-	Kind string `json:"kind"`
-
-	// name of the resource
-	// +kubebuilder:validation:MinLength=1
-	// +required
-	Name string `json:"name"`
-
-	// namespace of the resource (empty for cluster-scoped resources)
-	// +optional
-	Namespace *string `json:"namespace,omitempty"`
 }
 
 // +kubebuilder:object:root=true

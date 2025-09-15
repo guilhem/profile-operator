@@ -198,29 +198,11 @@ spec:
                 description: updateStrategy defines how updates are rolled out to
                   target resources
                 properties:
-                  rollingUpdate:
-                    description: rollingUpdate configuration, used when Type is RollingUpdate
-                    properties:
-                      maxConcurrent:
-                        default: 25%
-                        description: |-
-                          maxConcurrent is the maximum number of resources to update concurrently
-                          Can be an absolute number (ex: 5) or a percentage of total resources (ex: 10%)
-                        pattern: ^([0-9]+|[0-9]+%)$
-                        type: string
-                      pauseBetweenUpdatesSec:
-                        description: pauseBetweenUpdatesSec is the time to wait between
-                          updating batches in seconds
-                        format: int32
-                        type: integer
-                    type: object
                   type:
                     default: Immediate
                     description: type of update strategy
                     enum:
                     - Immediate
-                    - RollingUpdate
-                    - OnDelete
                     type: string
                 required:
                 - type
@@ -301,69 +283,6 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              currentUpdate:
-                description: currentUpdate provides information about the current
-                  update operation
-                properties:
-                  currentBatch:
-                    description: currentBatch is the current batch being processed
-                      (for rolling updates)
-                    format: int32
-                    type: integer
-                  failedResources:
-                    description: failedResources is a list of resources that failed
-                      to update
-                    items:
-                      description: FailedResource represents a resource that failed
-                        to be updated
-                      properties:
-                        failureTime:
-                          description: failureTime is when the failure occurred
-                          format: date-time
-                          type: string
-                        reason:
-                          description: reason for the failure
-                          type: string
-                        resourceRef:
-                          description: resourceRef is the reference to the failed
-                            resource
-                          properties:
-                            apiVersion:
-                              description: apiVersion of the resource
-                              minLength: 1
-                              type: string
-                            kind:
-                              description: kind of the resource
-                              minLength: 1
-                              type: string
-                            name:
-                              description: name of the resource
-                              minLength: 1
-                              type: string
-                            namespace:
-                              description: namespace of the resource (empty for cluster-scoped
-                                resources)
-                              type: string
-                          required:
-                          - apiVersion
-                          - kind
-                          - name
-                          type: object
-                      required:
-                      - resourceRef
-                      type: object
-                    type: array
-                    x-kubernetes-list-type: atomic
-                  startTime:
-                    description: startTime is when the current update started
-                    format: date-time
-                    type: string
-                  totalBatches:
-                    description: totalBatches is the total number of batches (for
-                      rolling updates)
-                    format: int32
-                    type: integer
-                type: object
               failedResources:
                 description: failedResources is the count of resources that failed
                   to be updated

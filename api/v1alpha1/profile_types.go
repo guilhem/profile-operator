@@ -29,9 +29,6 @@ const (
 	ApplyStrategyPatch ApplyStrategy = "Patch"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // ProfileSpec defines the desired state of Profile
 type ProfileSpec struct {
 	// description provides a human-readable description of what this profile does
@@ -52,14 +49,6 @@ type ProfileSpec struct {
 	// +kubebuilder:validation:Enum=SSA;Patch
 	// +optional
 	ApplyStrategy ApplyStrategy `json:"applyStrategy,omitempty"`
-
-	// priority defines the priority of this profile when multiple profiles match the same resource
-	// Higher values take precedence. Default is 0.
-	// +kubebuilder:default=0
-	// +kubebuilder:validation:Minimum=0
-	// +kubebuilder:validation:Maximum=1000
-	// +optional
-	Priority *int32 `json:"priority,omitempty"`
 }
 
 // ProfileTemplate defines the template configuration to apply as a complete overlay
@@ -99,7 +88,6 @@ type ProfileStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
-// +kubebuilder:printcolumn:name="Priority",type=integer,JSONPath=`.spec.priority`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // Profile is the Schema for the profiles API.

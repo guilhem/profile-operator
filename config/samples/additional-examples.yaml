@@ -4,7 +4,6 @@ metadata:
   name: resource-limits
 spec:
   description: "Sets resource limits for containers"
-  priority: 5
   template:
     spec:
       template:

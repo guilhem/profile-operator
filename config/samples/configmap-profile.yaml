@@ -3,8 +3,7 @@ kind: Profile
 metadata:
   name: configmap-production-config
 spec:
-  description: "Adds production configuration to ConfigMaps"
-  priority: 20
+  description: "Profile that adds ConfigMap labels"
   template:
     overlay:
       # Complete overlay - can modify any field including 'data'

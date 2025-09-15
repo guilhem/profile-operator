@@ -657,10 +657,7 @@ spec:
       matchLabels:
         app: rolling-app
   updateStrategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxConcurrent: "50%"
-      pauseBetweenUpdatesSec: 5
+    type: Immediate
   enabled: true
 `
 			cmd = exec.Command("kubectl", "apply", "-f", "-")
