@@ -31,11 +31,7 @@ func (in *Profile) DeepCopyInto(out *Profile) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
-	if in.Spec != nil {
-		in, out := &in.Spec, &out.Spec
-		*out = new(ProfileSpec)
-		(*in).DeepCopyInto(*out)
-	}
+	in.Spec.DeepCopyInto(&out.Spec)
 	in.Status.DeepCopyInto(&out.Status)
 }
 
@@ -244,6 +240,11 @@ func (in *ProfileSpec) DeepCopyInto(out *ProfileSpec) {
 		in, out := &in.Template, &out.Template
 		*out = new(ProfileTemplate)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.ApplyStrategy != nil {
+		in, out := &in.ApplyStrategy, &out.ApplyStrategy
+		*out = new(ApplyStrategy)
+		**out = **in
 	}
 }
 

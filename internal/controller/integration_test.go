@@ -69,7 +69,7 @@ var _ = Describe("Profile Operator Tests", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: profileName,
 				},
-				Spec: &profilesv1alpha1.ProfileSpec{
+				Spec: profilesv1alpha1.ProfileSpec{
 					Description: ptr.To("Simple test profile"),
 					Template: &profilesv1alpha1.ProfileTemplate{
 						RawPatchStrategicMerge: &apiextv1.JSON{

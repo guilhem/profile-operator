@@ -52,7 +52,7 @@ var _ = Describe("Profile Controller", func() {
 						Name: resourceName,
 						// Profile is cluster-scoped, no namespace
 					},
-					Spec: &profilesv1alpha1.ProfileSpec{
+					Spec: profilesv1alpha1.ProfileSpec{
 						Description: ptr.To("Test profile for unit testing"),
 						Template: &profilesv1alpha1.ProfileTemplate{
 							RawPatchStrategicMerge: createMetadataOnlyOverlay(map[string]string{

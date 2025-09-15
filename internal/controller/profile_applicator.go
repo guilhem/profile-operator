@@ -32,9 +32,9 @@ const (
 )
 
 // NewProfileApplicator creates a new ProfileApplicator
-func NewProfileApplicator(client client.Client, recorder record.EventRecorder) *ProfileApplicator {
+func NewProfileApplicator(cClient client.Client, recorder record.EventRecorder) *ProfileApplicator {
 	return &ProfileApplicator{
-		Client:   client,
+		Client:   cClient,
 		Recorder: recorder,
 	}
 }
@@ -93,13 +93,13 @@ func (a *ProfileApplicator) applyProfileToResource(ctx context.Context,
 
 	patchJSON := *profile.Spec.Template.RawPatchStrategicMerge
 
-	switch profile.Spec.ApplyStrategy {
+	switch *profile.Spec.ApplyStrategy {
 	case profilesv1alpha1.ApplyStrategySSA:
 		return a.applyProfileSSA(ctx, patchJSON, target)
 	case profilesv1alpha1.ApplyStrategyPatch:
 		return a.applyProfileServerPatch(ctx, patchJSON, target)
 	default:
-		return fmt.Errorf("unknown apply strategy: %s", profile.Spec.ApplyStrategy)
+		return fmt.Errorf("unknown apply strategy: %s", *profile.Spec.ApplyStrategy)
 	}
 }
 
@@ -155,10 +155,10 @@ func (a *ProfileApplicator) applyProfileServerPatch(ctx context.Context, patchJS
 
 	log.Info("Applying profile using server patch strategy", "patchSize", len(patchJSON.Raw))
 
-	// Send the patch as-is to the server using strategic merge patch
-	patch := client.RawPatch(types.StrategicMergePatchType, patchJSON.Raw)
+	// Send the rawPatch as-is to the server using strategic merge rawPatch
+	rawPatch := client.RawPatch(types.StrategicMergePatchType, patchJSON.Raw)
 
-	if err := a.Patch(ctx, target, patch, client.FieldOwner("profile-operator")); err != nil {
+	if err := a.Patch(ctx, target, rawPatch, client.FieldOwner("profile-operator")); err != nil {
 		return fmt.Errorf("failed to apply server patch to resource: %w", err)
 	}
 

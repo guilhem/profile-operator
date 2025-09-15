@@ -39,7 +39,7 @@ type ProfileSpec struct {
 	// template defines the configuration template to apply to target resources
 	// This contains the JSON/YAML patches to be applied
 	// +required
-	Template *ProfileTemplate `json:"template"`
+	Template *ProfileTemplate `json:"template,omitempty"`
 
 	// applyStrategy defines how the profile is applied to target resources
 	// Supported strategies are "SSA" and "Patch"
@@ -48,7 +48,7 @@ type ProfileSpec struct {
 	// +kubebuilder:default="SSA"
 	// +kubebuilder:validation:Enum=SSA;Patch
 	// +optional
-	ApplyStrategy ApplyStrategy `json:"applyStrategy,omitempty"`
+	ApplyStrategy *ApplyStrategy `json:"applyStrategy,omitempty"`
 }
 
 // ProfileTemplate defines the template configuration to apply as a complete overlay
@@ -103,7 +103,7 @@ type Profile struct {
 
 	// spec defines the desired state of Profile
 	// +required
-	Spec *ProfileSpec `json:"spec,omitempty"`
+	Spec ProfileSpec `json:"spec,omitempty,omitzero"`
 
 	// status defines the observed state of Profile
 	// +optional
