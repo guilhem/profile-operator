@@ -18,13 +18,10 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/kyverno/kyverno/pkg/engine/mutate/patch"
-	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -58,6 +55,7 @@ type ProfileBindingReconciler struct {
 	client.Client `json:",inline"`
 	Scheme        *runtime.Scheme      `json:"-"`
 	Recorder      record.EventRecorder `json:"-"`
+	Applicator    *ProfileApplicator   `json:"-"`
 }
 
 // +kubebuilder:rbac:groups=profiles.barpilot.io,resources=profilebindings,verbs=get;list;watch;create;update;patch;delete
@@ -129,16 +127,11 @@ func (r *ProfileBindingReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// Apply profile to resources
-	updated, failed := 0, 0
-	for i, resource := range targetResources {
-		log.Info("Applying profile to resource", "index", i, "resource", resource.GetName(), "kind", resource.GetKind())
-		if err := r.applyProfile(ctx, &profile, &resource); err != nil {
-			log.Error(err, "Failed to apply profile", "resource", resource.GetName())
-			failed++
-		} else {
-			log.Info("Successfully applied profile to resource", "resource", resource.GetName())
-			updated++
-		}
+	updated, failed, err := r.Applicator.ApplyProfileToResources(ctx, &profileBinding, &profile, targetResources)
+	if err != nil {
+		log.Error(err, "Failed to apply profile to resources")
+		r.setCondition(&profileBinding, ConditionReady, metav1.ConditionFalse, ReasonFailed, err.Error())
+		return ctrl.Result{}, err
 	}
 
 	// Update status
@@ -250,97 +243,6 @@ func (r *ProfileBindingReconciler) getResourcesInNamespace(ctx context.Context, 
 	}
 
 	return resourceList.Items, nil
-}
-
-func (r *ProfileBindingReconciler) applyProfile(ctx context.Context, profile *profilesv1alpha1.Profile, target *unstructured.Unstructured) error {
-
-	if profile.Spec.Template.RawPatchStrategicMerge == nil {
-		return fmt.Errorf("profile does not have a valid patchStrategicMerge defined")
-	}
-
-	patchJSON := *profile.Spec.Template.RawPatchStrategicMerge
-
-	switch profile.Spec.ApplyStrategy {
-	case profilesv1alpha1.ApplyStrategySSA:
-		return r.applyProfileSSA(ctx, patchJSON, target)
-	case profilesv1alpha1.ApplyStrategyPatch:
-		return r.applyProfileServerPatch(ctx, patchJSON, target)
-	}
-	return nil
-}
-
-// applyProfileSSA applies a profile to a single resource using Kyverno's strategic merge patch
-func (r *ProfileBindingReconciler) applyProfileSSA(ctx context.Context, patchJSON v1.JSON, target *unstructured.Unstructured) error {
-	log := logf.FromContext(ctx)
-
-	log.Info("Got patch from profile", "patchSize", len(patchJSON.Raw))
-
-	// Create Kyverno strategic merge patch processor
-	patcher := patch.NewPatchStrategicMerge(patchJSON)
-
-	// Convert target.Object to []byte for Kyverno
-	targetBytes, err := json.Marshal(target.Object)
-	if err != nil {
-		log.Error(err, "Failed to marshal target resource")
-		return fmt.Errorf("failed to marshal target resource: %w", err)
-	}
-	log.Info("Marshaled target resource", "size", len(targetBytes))
-
-	// Apply the patch
-	patchedBytes, err := patcher.Patch(log, targetBytes)
-	if err != nil {
-		log.Error(err, "Failed to apply strategic merge patch")
-		return fmt.Errorf("failed to apply strategic merge patch: %w", err)
-	}
-	log.Info("Applied patch successfully", "patchedSize", len(patchedBytes))
-
-	// Check if the patch would actually change anything (using Kyverno's comparison approach)
-	if strings.TrimSpace(string(targetBytes)) == strings.TrimSpace(string(patchedBytes)) {
-		log.Info("Resource is already up-to-date, no changes needed")
-		return nil // No changes needed
-	}
-
-	// Convert the patched bytes back to map[string]interface{}
-	var patchedObject map[string]interface{}
-	if err := json.Unmarshal(patchedBytes, &patchedObject); err != nil {
-		log.Error(err, "Failed to unmarshal patched resource")
-		return fmt.Errorf("failed to unmarshal patched resource: %w", err)
-	}
-
-	// Update the target with patched content
-	target.Object = patchedObject
-	log.Info("Updated target object with patched content")
-
-	// Apply the changes only if we have a client
-	if r.Client != nil {
-		log.Info("Updating resource in cluster")
-		if err := r.Apply(ctx, client.ApplyConfigurationFromUnstructured(target), client.FieldOwner("profile-operator")); err != nil {
-			log.Error(err, "Failed to update resource in cluster")
-			return fmt.Errorf("failed to update resource in cluster: %w", err)
-		}
-		log.Info("Successfully updated resource in cluster")
-	}
-
-	return nil
-}
-
-// applyProfileServerPatch applies a profile patch directly to a resource via server-side patching
-func (r *ProfileBindingReconciler) applyProfileServerPatch(ctx context.Context, patchJSON v1.JSON, target *unstructured.Unstructured) error {
-	log := logf.FromContext(ctx)
-
-	log.Info("Got server patch from profile", "patchSize", len(patchJSON.Raw))
-
-	// Send the patch as-is to the server using strategic merge patch
-	patch := client.RawPatch(types.StrategicMergePatchType, patchJSON.Raw)
-
-	if err := r.Patch(ctx, target, patch, client.FieldOwner("profile-operator")); err != nil {
-		log.Error(err, "Failed to apply server patch to resource")
-		return fmt.Errorf("failed to apply server patch to resource: %w", err)
-	}
-
-	log.Info("Successfully applied server patch to resource")
-
-	return nil
 }
 
 // setCondition sets a condition with current timestamp

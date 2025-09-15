@@ -186,10 +186,18 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Profile")
 		os.Exit(1)
 	}
+
+	// Create ProfileApplicator service
+	profileApplicator := controller.NewProfileApplicator(
+		mgr.GetClient(),
+		mgr.GetEventRecorderFor("profile-applicator"),
+	)
+
 	if err := (&controller.ProfileBindingReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("profilebinding-controller"),
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		Recorder:   mgr.GetEventRecorderFor("profilebinding-controller"),
+		Applicator: profileApplicator,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ProfileBinding")
 		os.Exit(1)
