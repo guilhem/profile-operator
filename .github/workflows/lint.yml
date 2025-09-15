@@ -17,7 +17,14 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Run linter
-        uses: golangci/golangci-lint-action@v8
-        with:
-          version: v2.3.0
+      # - name: Run linter
+      #   uses: golangci/golangci-lint-action@v8
+      #   with:
+      #     version: v2.3.0
+
+      - name: Run custom-gcl linter
+        run: |
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          golangci-lint custom
+          ./bin/golangci-kube-api-linter run ./...
+        shell: bash
