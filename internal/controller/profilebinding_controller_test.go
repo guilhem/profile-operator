@@ -55,7 +55,7 @@ var _ = Describe("ProfileBinding Controller", func() {
 						Namespace: "default",
 					},
 					Spec: profilesv1alpha1.ProfileBindingSpec{
-						ProfileRef: &profilesv1alpha1.ProfileReference{
+						ProfileRef: profilesv1alpha1.ProfileReference{
 							Name: "test-profile",
 						},
 						TargetSelector: profilesv1alpha1.TargetSelector{
@@ -91,10 +91,19 @@ var _ = Describe("ProfileBinding Controller", func() {
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
+
+			// Create a simple agent that won't actually setup informers during tests
+			agent := &ProfileBindingAgent{
+				Client:         k8sClient,
+				Recorder:       &FakeRecorder{},
+				activeBindings: make(map[string]*profilesv1alpha1.ProfileBinding),
+			}
+
 			controllerReconciler := &ProfileBindingReconciler{
 				Client:   k8sClient,
 				Scheme:   k8sClient.Scheme(),
 				Recorder: &FakeRecorder{},
+				Agent:    agent,
 			}
 
 			By("Performing initial reconciliation to add finalizer")

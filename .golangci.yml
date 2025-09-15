@@ -45,6 +45,10 @@ linters:
           - dupl
           - lll
         path: internal/*
+      - path-except: "api/*"
+        linters:
+          - kubeapilinter
+
     paths:
       - third_party$
       - builtin$

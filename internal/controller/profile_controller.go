@@ -52,9 +52,9 @@ const (
 
 // ProfileReconciler reconciles a Profile object
 type ProfileReconciler struct {
-	client.Client `json:",inline"`
-	Scheme        *runtime.Scheme      `json:"-"`
-	Recorder      record.EventRecorder `json:"-"`
+	client.Client
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 }
 
 // Finalizer name for Profile

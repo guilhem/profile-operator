@@ -25,7 +25,7 @@ import (
 type ProfileBindingSpec struct {
 	// profileRef references the Profile to apply
 	// +required
-	ProfileRef *ProfileReference `json:"profileRef,omitzero"`
+	ProfileRef ProfileReference `json:"profileRef,omitzero"`
 
 	// targetSelector defines which resources this binding applies to
 	// +required
@@ -47,7 +47,7 @@ type ProfileReference struct {
 	// name is the name of the Profile resource
 	// +kubebuilder:validation:MinLength=1
 	// +required
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 }
 
 // TargetSelector defines criteria for selecting target resources
@@ -77,7 +77,7 @@ type UpdateStrategy struct {
 	// +kubebuilder:validation:Enum=Immediate
 	// +kubebuilder:default="Immediate"
 	// +required
-	Type UpdateStrategyType `json:"type"`
+	Type UpdateStrategyType `json:"type,omitempty"`
 }
 
 // UpdateStrategyType defines the type of update strategy

@@ -187,19 +187,27 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create ProfileApplicator service
-	profileApplicator := controller.NewProfileApplicator(
+	// Create ProfileBindingAgent that manages informers and applicators
+	profileBindingAgent := controller.NewProfileBindingAgent(
 		mgr.GetClient(),
-		mgr.GetEventRecorderFor("profile-applicator"),
+		mgr.GetEventRecorderFor("profilebinding-agent"),
+		mgr,
 	)
 
+	// Setup ProfileBindingReconciler with the agent
 	if err := (&controller.ProfileBindingReconciler{
-		Client:     mgr.GetClient(),
-		Scheme:     mgr.GetScheme(),
-		Recorder:   mgr.GetEventRecorderFor("profilebinding-controller"),
-		Applicator: profileApplicator,
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("profilebinding-controller"),
+		Agent:    profileBindingAgent,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ProfileBinding")
+		os.Exit(1)
+	}
+
+	// Add agent startup to manager
+	if err := mgr.Add(profileBindingAgent); err != nil {
+		setupLog.Error(err, "unable to add ProfileBindingAgent to manager")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

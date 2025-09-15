@@ -20,8 +20,8 @@ import (
 // ProfileApplicator handles the application of profiles to target resources
 // This is a service component, not a controller, to avoid controller-runtime complexities
 type ProfileApplicator struct {
-	client.Client `json:",inline"`
-	Recorder      record.EventRecorder `json:"-"`
+	client.Client
+	Recorder record.EventRecorder
 }
 
 // Event reasons for target resources
