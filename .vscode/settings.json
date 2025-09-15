@@ -1,0 +1,8 @@
+{
+    "go.lintTool": "golangci-lint-v2",
+    "go.alternateTools": {
+        "golangci-lint-v2": "${workspaceFolder}/bin/golangci-kube-api-linter"
+    },
+    "markdown.validate.enabled": true,
+    "go.buildTags": "-tags \"e2e\""
+}
