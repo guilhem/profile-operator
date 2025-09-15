@@ -61,6 +61,39 @@ vet: ## Run go vet against code.
 test: manifests generate fmt vet setup-envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
 
+.PHONY: test-unit
+test-unit: manifests generate fmt vet setup-envtest ## Run unit tests only.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./api/... -coverprofile cover-unit.out
+
+.PHONY: test-integration
+test-integration: manifests generate fmt vet setup-envtest ## Run integration tests for controllers.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./internal/controller/... -coverprofile cover-integration.out -v
+
+.PHONY: test-conversion
+test-conversion: manifests generate fmt vet setup-envtest ## Run resource conversion tests specifically.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./internal/controller/... -run "ResourceConversion\|ProfileBinding.*End-to-End" -v
+
+.PHONY: test-coverage
+test-coverage: manifests generate fmt vet setup-envtest ## Run tests with detailed coverage report.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out -covermode=atomic
+	go tool cover -html=cover.out -o coverage.html
+	@echo "Coverage report generated in coverage.html"
+
+.PHONY: test-verbose
+test-verbose: manifests generate fmt vet setup-envtest ## Run tests with verbose output.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -v -coverprofile cover.out
+
+.PHONY: test-race
+test-race: manifests generate fmt vet setup-envtest ## Run tests with race detection.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -race
+
+.PHONY: test-bench
+test-bench: manifests generate fmt vet setup-envtest ## Run benchmark tests.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -bench=. -benchmem
+
+.PHONY: test-all
+test-all: test-unit test-integration test-e2e ## Run all tests (unit, integration, and e2e).
+
 # TODO(user): To use a different vendor for e2e tests, modify the setup under 'tests/e2e'.
 # The default setup assumes Kind is pre-installed and builds/loads the Manager Docker image locally.
 # CertManager is installed by default; skip with:

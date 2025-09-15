@@ -56,7 +56,7 @@ var _ = Describe("Profile Controller", func() {
 						Description: ptr.To("Test profile for unit testing"),
 						Priority:    ptr.To(int32(5)),
 						Template: &profilesv1alpha1.ProfileTemplate{
-							PatchStrategicMerge: createMetadataOnlyOverlay(map[string]string{
+							RawPatchStrategicMerge: createMetadataOnlyOverlay(map[string]string{
 								"test": "true",
 							}),
 						},

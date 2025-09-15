@@ -23,9 +23,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -56,7 +56,7 @@ var _ = Describe("Profile Operator Tests", func() {
 					Description: ptr.To("Simple test profile"),
 					Priority:    ptr.To(int32(5)),
 					Template: &profilesv1alpha1.ProfileTemplate{
-						PatchStrategicMerge: &runtime.RawExtension{
+						RawPatchStrategicMerge: &apiextv1.JSON{
 							Raw: []byte(`{
 								"metadata": {
 									"labels": {

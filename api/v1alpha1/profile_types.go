@@ -17,8 +17,16 @@ limitations under the License.
 package v1alpha1
 
 import (
+	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+)
+
+// ApplyStrategy defines the strategy for applying a profile.
+type ApplyStrategy string
+
+const (
+	ApplyStrategySSA   ApplyStrategy = "SSA"
+	ApplyStrategyPatch ApplyStrategy = "Patch"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -36,6 +44,15 @@ type ProfileSpec struct {
 	// +required
 	Template *ProfileTemplate `json:"template"`
 
+	// applyStrategy defines how the profile is applied to target resources
+	// Supported strategies are "SSA" and "Patch"
+	// - SSA: Server-Side Apply, the profile is applied using server-side apply
+	// - Patch: Strategic Merge Patch, the profile is applied using a strategic merge patch
+	// +kubebuilder:default="SSA"
+	// +kubebuilder:validation:Enum=SSA;Patch
+	// +optional
+	ApplyStrategy ApplyStrategy `json:"applyStrategy,omitempty"`
+
 	// priority defines the priority of this profile when multiple profiles match the same resource
 	// Higher values take precedence. Default is 0.
 	// +kubebuilder:default=0
@@ -50,8 +67,10 @@ type ProfileTemplate struct {
 	// patchStrategicMerge contains the complete YAML/JSON overlay to apply to target resources
 	// This works like Kustomize overlays - any field specified here will be merged
 	// into the target resource. Works with spec, metadata, data, and any other fields.
+	// +kubebuilder:validation:Type=object
+	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
-	PatchStrategicMerge *runtime.RawExtension `json:"patchStrategicMerge,omitempty"`
+	RawPatchStrategicMerge *apiextv1.JSON `json:"patchStrategicMerge,omitempty"`
 }
 
 // ProfileStatus defines the observed state of Profile.
@@ -75,10 +94,6 @@ type ProfileStatus struct {
 	// observedGeneration reflects the generation most recently observed by the controller
 	// +optional
 	ObservedGeneration *int64 `json:"observedGeneration,omitempty"`
-
-	// lastUpdated is the last time this status was updated
-	// +optional
-	LastUpdated *metav1.Time `json:"lastUpdated,omitempty"`
 }
 
 // +kubebuilder:object:root=true

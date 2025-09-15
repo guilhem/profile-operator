@@ -50,6 +50,17 @@ spec:
           spec:
             description: spec defines the desired state of Profile
             properties:
+              applyStrategy:
+                default: SSA
+                description: |-
+                  applyStrategy defines how the profile is applied to target resources
+                  Supported strategies are "SSA" and "Patch"
+                  - SSA: Server-Side Apply, the profile is applied using server-side apply
+                  - Patch: Strategic Merge Patch, the profile is applied using a strategic merge patch
+                enum:
+                - SSA
+                - Patch
+                type: string
               description:
                 description: description provides a human-readable description of
                   what this profile does
@@ -152,10 +163,6 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              lastUpdated:
-                description: lastUpdated is the last time this status was updated
-                format: date-time
-                type: string
               observedGeneration:
                 description: observedGeneration reflects the generation most recently
                   observed by the controller

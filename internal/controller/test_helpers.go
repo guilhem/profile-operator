@@ -19,11 +19,11 @@ package controller
 import (
 	"encoding/json"
 
-	"k8s.io/apimachinery/pkg/runtime"
+	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
 // createSimpleOverlay creates a simple overlay for testing
-func createSimpleOverlay(labels map[string]string, spec map[string]interface{}) *runtime.RawExtension {
+func createSimpleOverlay(labels map[string]string, spec map[string]interface{}) *apiextv1.JSON {
 	overlay := make(map[string]interface{})
 
 	if len(labels) > 0 {
@@ -38,10 +38,10 @@ func createSimpleOverlay(labels map[string]string, spec map[string]interface{}) 
 	}
 
 	overlayJSON, _ := json.Marshal(overlay)
-	return &runtime.RawExtension{Raw: overlayJSON}
+	return &apiextv1.JSON{Raw: overlayJSON}
 }
 
 // createMetadataOnlyOverlay creates an overlay with only metadata
-func createMetadataOnlyOverlay(labels map[string]string) *runtime.RawExtension {
+func createMetadataOnlyOverlay(labels map[string]string) *apiextv1.JSON {
 	return createSimpleOverlay(labels, nil)
 }

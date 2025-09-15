@@ -369,10 +369,6 @@ spec:
                   to be updated
                 format: int32
                 type: integer
-              lastUpdated:
-                description: lastUpdated is the last time this status was updated
-                format: date-time
-                type: string
               observedGeneration:
                 description: observedGeneration reflects the generation most recently
                   observed by the controller

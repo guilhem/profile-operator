@@ -7,10 +7,13 @@ spec:
   profileRef:
     name: php-image-update
   targetSelector:
-    apiVersion: apps/v1
-    kind: Deployment
-    matchLabels:
-      app: php-app
+    resourceRule:
+      apiGroups: ["apps"]
+      apiVersions: ["v1"]
+      resources: ["deployments"]
+    objectSelector:
+      matchLabels:
+        app: php-app
     namespaces:
     - default
     - staging
@@ -18,5 +21,5 @@ spec:
     type: RollingUpdate
     rollingUpdate:
       maxConcurrent: "50%"
-      pauseBetweenUpdates: 30s
+      pauseBetweenUpdatesSec: 30
   enabled: true

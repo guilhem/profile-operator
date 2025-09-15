@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -96,12 +97,65 @@ var _ = Describe("ProfileBinding Controller", func() {
 				Recorder: &FakeRecorder{},
 			}
 
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+			By("Performing initial reconciliation to add finalizer")
+			result, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
+
+			// First reconciliation should requeue to add finalizer
+			Expect(result.RequeueAfter).To(BeNumerically(">", 0))
+
+			By("Verifying finalizer was added")
+			var updatedBinding profilesv1alpha1.ProfileBinding
+			Expect(k8sClient.Get(ctx, typeNamespacedName, &updatedBinding)).To(Succeed())
+			Expect(updatedBinding.Finalizers).To(ContainElement("profilebinding.profiles.barpilot.io/finalizer"))
+
+			By("Performing subsequent reconciliations until conditions are set")
+			Eventually(func() bool {
+				_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+					NamespacedName: typeNamespacedName,
+				})
+				if err != nil {
+					return false
+				}
+
+				// Get the latest ProfileBinding
+				var currentBinding profilesv1alpha1.ProfileBinding
+				if err := k8sClient.Get(ctx, typeNamespacedName, &currentBinding); err != nil {
+					return false
+				}
+
+				// Check if conditions are initialized
+				return len(currentBinding.Status.Conditions) > 0
+			}).Should(BeTrue(), "ProfileBinding should have status conditions initialized")
+
+			By("Verifying final ProfileBinding status")
+			var finalBinding profilesv1alpha1.ProfileBinding
+			Expect(k8sClient.Get(ctx, typeNamespacedName, &finalBinding)).To(Succeed())
+
+			// Verify status conditions exist
+			Expect(finalBinding.Status.Conditions).NotTo(BeEmpty())
+
+			// Check for Ready condition - could be either Initializing or ProfileNotFound
+			readyCondition := meta.FindStatusCondition(finalBinding.Status.Conditions, ConditionReady)
+			Expect(readyCondition).NotTo(BeNil())
+			Expect(readyCondition.Status).To(Equal(metav1.ConditionFalse))
+			// The reason could be either Initializing (if no resources found) or ProfileNotFound (if profile doesn't exist)
+			Expect(readyCondition.Reason).To(Or(Equal(ReasonInitializing), Equal(ReasonProfileNotFound)))
+
+			// Verify observed generation is set
+			Expect(finalBinding.Status.ObservedGeneration).NotTo(BeNil())
+			Expect(*finalBinding.Status.ObservedGeneration).To(Equal(finalBinding.Generation))
+
+			// Verify resource counts are initialized (should be nil since no resources found or processed)
+			Expect(finalBinding.Status.TargetedResources).To(BeNil()) // Not set when no resources found
+			Expect(finalBinding.Status.UpdatedResources).To(BeNil())
+			Expect(finalBinding.Status.FailedResources).To(BeNil())
+
+			// LastUpdated is only set when resources are actually processed
+			// In this case, since we're in Initializing state, it may be nil
+			// This is expected behavior for this test scenario
 		})
 	})
 })

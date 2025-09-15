@@ -195,7 +195,6 @@ func (r *ProfileReconciler) markProfileAsInvalid(profile *profilesv1alpha1.Profi
 
 // markProfileAsReady marks a profile as ready and valid
 func (r *ProfileReconciler) markProfileAsReady(profile *profilesv1alpha1.Profile) {
-	profile.Status.LastUpdated = &metav1.Time{Time: time.Now()}
 	r.setProfileCondition(profile, ProfileConditionReady, metav1.ConditionTrue, ProfileReasonValidationSucceeded, "Profile is ready for use")
 	r.setProfileCondition(profile, ProfileConditionValid, metav1.ConditionTrue, ProfileReasonValidationSucceeded, "Profile template is valid")
 }
@@ -203,13 +202,13 @@ func (r *ProfileReconciler) markProfileAsReady(profile *profilesv1alpha1.Profile
 // validateProfile validates the profile template structure
 func (r *ProfileReconciler) validateProfile(profile *profilesv1alpha1.Profile) error {
 	// Validate template has overlay configuration
-	if profile.Spec.Template.PatchStrategicMerge == nil || profile.Spec.Template.PatchStrategicMerge.Raw == nil {
+	if profile.Spec.Template.RawPatchStrategicMerge == nil || profile.Spec.Template.RawPatchStrategicMerge.Raw == nil {
 		return fmt.Errorf("template must contain overlay configuration")
 	}
 
 	// Validate overlay template JSON
 	var temp interface{}
-	if err := json.Unmarshal(profile.Spec.Template.PatchStrategicMerge.Raw, &temp); err != nil {
+	if err := json.Unmarshal(profile.Spec.Template.RawPatchStrategicMerge.Raw, &temp); err != nil {
 		return fmt.Errorf("invalid JSON in template overlay: %v", err)
 	}
 

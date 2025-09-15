@@ -23,6 +23,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kyverno/kyverno/pkg/engine/mutate/patch"
+	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,9 +38,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/kustomize/api/filters/patchstrategicmerge"
-	filtersutil "sigs.k8s.io/kustomize/kyaml/filtersutil"
-	"sigs.k8s.io/kustomize/kyaml/yaml"
 
 	profilesv1alpha1 "github.com/guilhem/profile-operator/api/v1alpha1"
 )
@@ -112,23 +111,32 @@ func (r *ProfileBindingReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	var profile profilesv1alpha1.Profile
 	if err := r.Get(ctx, types.NamespacedName{Name: profileBinding.Spec.ProfileRef.Name}, &profile); err != nil {
 		r.setCondition(&profileBinding, ConditionReady, metav1.ConditionFalse, ReasonProfileNotFound, err.Error())
-		return ctrl.Result{RequeueAfter: time.Minute * 5}, nil
+		return ctrl.Result{}, err
 	}
 
 	// Get target resources
 	targetResources, err := r.getTargetResources(ctx, &profileBinding)
 	if err != nil {
+		log.Error(err, "Failed to get target resources")
 		r.setCondition(&profileBinding, ConditionReady, metav1.ConditionFalse, ReasonFailed, err.Error())
-		return ctrl.Result{RequeueAfter: time.Minute * 5}, nil
+		return ctrl.Result{}, err
+	}
+
+	log.Info("Found target resources", "count", len(targetResources))
+	if len(targetResources) == 0 {
+		r.setCondition(&profileBinding, ConditionReady, metav1.ConditionFalse, ReasonInitializing, "No target resources found")
+		return ctrl.Result{RequeueAfter: time.Second * 30}, nil
 	}
 
 	// Apply profile to resources
 	updated, failed := 0, 0
-	for _, resource := range targetResources {
-		if err := r.applyProfileToSingleResource(ctx, &profile, &resource); err != nil {
+	for i, resource := range targetResources {
+		log.Info("Applying profile to resource", "index", i, "resource", resource.GetName(), "kind", resource.GetKind())
+		if err := r.applyProfile(ctx, &profile, &resource); err != nil {
 			log.Error(err, "Failed to apply profile", "resource", resource.GetName())
 			failed++
 		} else {
+			log.Info("Successfully applied profile to resource", "resource", resource.GetName())
 			updated++
 		}
 	}
@@ -137,16 +145,16 @@ func (r *ProfileBindingReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	profileBinding.Status.TargetedResources = ptr.To(int32(len(targetResources)))
 	profileBinding.Status.UpdatedResources = ptr.To(int32(updated))
 	profileBinding.Status.FailedResources = ptr.To(int32(failed))
-	profileBinding.Status.LastUpdated = &metav1.Time{Time: time.Now()}
 
 	if failed == 0 {
 		r.setCondition(&profileBinding, ConditionReady, metav1.ConditionTrue, ReasonApplied, "Profile applied successfully")
+		// Only requeue if there were changes to apply, otherwise stay ready
+		return ctrl.Result{}, nil
 	} else {
 		r.setCondition(&profileBinding, ConditionReady, metav1.ConditionFalse, ReasonPartiallyApplied, fmt.Sprintf("%d resources failed", failed))
+		// Requeue on failure to retry
+		return ctrl.Result{RequeueAfter: time.Minute * 5}, nil
 	}
-
-	// Requeue periodically to ensure consistency
-	return ctrl.Result{RequeueAfter: time.Minute * 10}, nil
 }
 
 // getTargetResources retrieves resources based on the target selector
@@ -242,108 +250,97 @@ func (r *ProfileBindingReconciler) getResourcesInNamespace(ctx context.Context, 
 	}
 
 	return resourceList.Items, nil
-} // applyProfileToSingleResource applies a profile to a single resource using kustomize
-func (r *ProfileBindingReconciler) applyProfileToSingleResource(ctx context.Context, profile *profilesv1alpha1.Profile, target *unstructured.Unstructured) error {
-	if profile.Spec.Template.PatchStrategicMerge == nil {
-		return nil // Nothing to apply
+}
+
+func (r *ProfileBindingReconciler) applyProfile(ctx context.Context, profile *profilesv1alpha1.Profile, target *unstructured.Unstructured) error {
+
+	if profile.Spec.Template.RawPatchStrategicMerge == nil {
+		return fmt.Errorf("profile does not have a valid patchStrategicMerge defined")
 	}
 
-	// Convert target to YAML
-	targetYAML, err := r.resourceToYAML(target)
+	patchJSON := *profile.Spec.Template.RawPatchStrategicMerge
+
+	switch profile.Spec.ApplyStrategy {
+	case profilesv1alpha1.ApplyStrategySSA:
+		return r.applyProfileSSA(ctx, patchJSON, target)
+	case profilesv1alpha1.ApplyStrategyPatch:
+		return r.applyProfileServerPatch(ctx, patchJSON, target)
+	}
+	return nil
+}
+
+// applyProfileSSA applies a profile to a single resource using Kyverno's strategic merge patch
+func (r *ProfileBindingReconciler) applyProfileSSA(ctx context.Context, patchJSON v1.JSON, target *unstructured.Unstructured) error {
+	log := logf.FromContext(ctx)
+
+	log.Info("Got patch from profile", "patchSize", len(patchJSON.Raw))
+
+	// Create Kyverno strategic merge patch processor
+	patcher := patch.NewPatchStrategicMerge(patchJSON)
+
+	// Convert target.Object to []byte for Kyverno
+	targetBytes, err := json.Marshal(target.Object)
 	if err != nil {
-		return fmt.Errorf("failed to convert target to YAML: %w", err)
+		log.Error(err, "Failed to marshal target resource")
+		return fmt.Errorf("failed to marshal target resource: %w", err)
 	}
+	log.Info("Marshaled target resource", "size", len(targetBytes))
 
-	// Convert RawExtension overlay to YAML
-	overlayYAML := profile.Spec.Template.PatchStrategicMerge.Raw
-	if len(overlayYAML) == 0 {
-		return nil // Empty overlay
-	}
-
-	// Apply strategic merge patch
-	patchedYAML, err := r.applyStrategicMergePatch(targetYAML, overlayYAML)
+	// Apply the patch
+	patchedBytes, err := patcher.Patch(log, targetBytes)
 	if err != nil {
+		log.Error(err, "Failed to apply strategic merge patch")
 		return fmt.Errorf("failed to apply strategic merge patch: %w", err)
 	}
+	log.Info("Applied patch successfully", "patchedSize", len(patchedBytes))
 
-	// Convert back to unstructured
-	patched, err := r.yamlToUnstructured(patchedYAML)
-	if err != nil {
-		return fmt.Errorf("failed to convert patched YAML to unstructured: %w", err)
+	// Check if the patch would actually change anything (using Kyverno's comparison approach)
+	if strings.TrimSpace(string(targetBytes)) == strings.TrimSpace(string(patchedBytes)) {
+		log.Info("Resource is already up-to-date, no changes needed")
+		return nil // No changes needed
+	}
+
+	// Convert the patched bytes back to map[string]interface{}
+	var patchedObject map[string]interface{}
+	if err := json.Unmarshal(patchedBytes, &patchedObject); err != nil {
+		log.Error(err, "Failed to unmarshal patched resource")
+		return fmt.Errorf("failed to unmarshal patched resource: %w", err)
 	}
 
 	// Update the target with patched content
-	target.Object = patched.Object
+	target.Object = patchedObject
+	log.Info("Updated target object with patched content")
 
 	// Apply the changes only if we have a client
 	if r.Client != nil {
-		return r.Update(ctx, target)
+		log.Info("Updating resource in cluster")
+		if err := r.Apply(ctx, client.ApplyConfigurationFromUnstructured(target), client.FieldOwner("profile-operator")); err != nil {
+			log.Error(err, "Failed to update resource in cluster")
+			return fmt.Errorf("failed to update resource in cluster: %w", err)
+		}
+		log.Info("Successfully updated resource in cluster")
 	}
 
 	return nil
 }
 
-// applyStrategicMergePatch applies a strategic merge patch using kustomize
-func (r *ProfileBindingReconciler) applyStrategicMergePatch(targetYAML, overlayYAML []byte) ([]byte, error) {
-	// Parse target YAML
-	targetNode, err := yaml.Parse(string(targetYAML))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse target YAML: %w", err)
+// applyProfileServerPatch applies a profile patch directly to a resource via server-side patching
+func (r *ProfileBindingReconciler) applyProfileServerPatch(ctx context.Context, patchJSON v1.JSON, target *unstructured.Unstructured) error {
+	log := logf.FromContext(ctx)
+
+	log.Info("Got server patch from profile", "patchSize", len(patchJSON.Raw))
+
+	// Send the patch as-is to the server using strategic merge patch
+	patch := client.RawPatch(types.StrategicMergePatchType, patchJSON.Raw)
+
+	if err := r.Patch(ctx, target, patch, client.FieldOwner("profile-operator")); err != nil {
+		log.Error(err, "Failed to apply server patch to resource")
+		return fmt.Errorf("failed to apply server patch to resource: %w", err)
 	}
 
-	// Parse overlay YAML
-	overlayNode, err := yaml.Parse(string(overlayYAML))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse overlay YAML: %w", err)
-	}
+	log.Info("Successfully applied server patch to resource")
 
-	// Create strategic merge patch filter
-	filter := patchstrategicmerge.Filter{
-		Patch: overlayNode,
-	}
-
-	// Apply the patch
-	if err := filtersutil.ApplyToJSON(filter, targetNode); err != nil {
-		return nil, fmt.Errorf("failed to apply strategic merge patch: %w", err)
-	}
-
-	// Convert back to YAML
-	result, err := targetNode.String()
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert result to string: %w", err)
-	}
-
-	return []byte(result), nil
-}
-
-// resourceToYAML converts an unstructured resource to YAML
-func (r *ProfileBindingReconciler) resourceToYAML(resource *unstructured.Unstructured) ([]byte, error) {
-	jsonBytes, err := json.Marshal(resource.Object)
-	if err != nil {
-		return nil, err
-	}
-
-	node, err := yaml.Parse(string(jsonBytes))
-	if err != nil {
-		return nil, err
-	}
-
-	return []byte(node.MustString()), nil
-}
-
-// yamlToUnstructured converts YAML to an unstructured resource
-func (r *ProfileBindingReconciler) yamlToUnstructured(yamlBytes []byte) (*unstructured.Unstructured, error) {
-	node, err := yaml.Parse(string(yamlBytes))
-	if err != nil {
-		return nil, err
-	}
-
-	var obj map[string]interface{}
-	if err := node.YNode().Decode(&obj); err != nil {
-		return nil, err
-	}
-
-	return &unstructured.Unstructured{Object: obj}, nil
+	return nil
 }
 
 // setCondition sets a condition with current timestamp

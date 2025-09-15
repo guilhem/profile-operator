@@ -149,10 +149,6 @@ type ProfileBindingStatus struct {
 	// +optional
 	FailedResources *int32 `json:"failedResources,omitempty"`
 
-	// lastUpdated is the last time this status was updated
-	// +optional
-	LastUpdated *metav1.Time `json:"lastUpdated,omitempty"`
-
 	// currentUpdate provides information about the current update operation
 	// +optional
 	CurrentUpdate *UpdateStatus `json:"currentUpdate,omitempty"`
